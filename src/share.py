@@ -15,7 +15,7 @@ except ImportError:
     sys.exit("pygtk not found.")
 
 UI_FILE = "data/py_share.ui"
-INTERFACE = "wlan0"
+INTERFACE = "lo"
 
 def handle_server(port, obj, sec):        
     handler = SimpleHTTPServer.SimpleHTTPRequestHandler
@@ -60,6 +60,7 @@ class GUI:
         self.bt_start = self.builder.get_object("bt_start")
         self.ad_port = self.builder.get_object("ad_port")
         self.lb_status = self.builder.get_object("lb_status")
+        self.cb_iface = self.builder.get_object("cb_iface")
         
         self.port = 8000
         self.isActive = False        
@@ -70,8 +71,30 @@ class GUI:
         self.bt_start.connect("clicked", self.start)
         self.ad_port.set_value(self.port)
         
-    def start(self, widget=None):        
+        ls_iface = gtk.ListStore(str)
+        self.cb_iface.set_model(ls_iface)
+        cell = gtk.CellRendererText()
+        self.cb_iface.pack_start(cell, True)
+        self.cb_iface.add_attribute(cell, 'text', 0)
         
+        # Interfaces
+        for interface in all_interfaces():
+            ls_iface.append([interface])
+        
+        self.cb_iface.set_active(0)
+        
+    def start(self, widget=None):        
+        model = self.cb_iface.get_model()
+        active = self.cb_iface.get_active()
+        
+        if active < 0:
+            msg = gtk.MessageDialog(self.window, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO, gtk.BUTTONS_CLOSE, "No interface selected.")
+            msg.run()
+            msg.destroy()
+            return False
+        
+        self.ip = get_ip_address(model[active][0])
+
         if self.isActive == False:
             self.port = int(self.ad_port.get_value())
             self.isActive = True
@@ -90,8 +113,8 @@ class GUI:
             self.bt_start.set_label("Start")
             self.lb_status.set_label("Status: %s" % ("Stopping Server..."))            
             self.bt_start.set_sensitive(False)
-            webbrowser.open("http://127.0.0.1:%s" % self.port)
-
+            webbrowser.open("http://127.0.0.1:%s" % self.port)    	
+    
     def exit(self, widget=None):                        
         self.isActive = False
         gtk.main_quit()
